@@ -1,0 +1,68 @@
+{
+  "session_id": "foreverfierce_enrich_2026-02-04",
+  "status": "in_progress",
+  "created": "2026-02-04",
+  "last_updated": "2026-02-04",
+
+  "input_file": "exports/foreverfierce/2026-02-04_v1.csv",
+  "total_companies": 50,
+  "companies_processed": 10,
+  "companies_remaining": 40,
+
+  "target_titles": [
+    "owner", "founder", "ceo", "president",
+    "general manager", "manager", "head coach",
+    "coach", "director", "partner"
+  ],
+  "excluded_titles": [
+    "assistant", "intern", "specialist",
+    "student", "associate", "junior"
+  ],
+
+  "sample_results": {
+    "companies_with_contacts": 3,
+    "total_contacts": 4,
+    "contact_rate": "30%",
+    "top_titles": {
+      "Sales Manager": 2,
+      "President": 1,
+      "Co-Owner": 1
+    }
+  },
+
+  "contacts_found": [
+    {
+      "company": "Graphic FX, Inc.",
+      "name": "Chad McKay",
+      "title": "President"
+    },
+    {
+      "company": "Graphic FX, Inc.",
+      "name": "Brian Kiefer",
+      "title": "Sales Manager"
+    },
+    {
+      "company": "UNITEE Custom Tshirts Merch",
+      "name": "NURSHAHIDA MOHD YUSOF",
+      "title": "Sales Manager"
+    },
+    {
+      "company": "Unitee Fitness Apparel",
+      "name": "Joel Hebert",
+      "title": "Co-Owner, Unitee // Custom Tshirts and Merch"
+    }
+  ],
+
+  "api_config": {
+    "base_url": "https://api.ai-ark.com/api/developer-portal/v1",
+    "endpoint": "/people",
+    "auth_header": "X-TOKEN",
+    "note": "API key stored in AIARK_API_KEY env var"
+  },
+
+  "next_steps": [
+    "Run full enrichment on remaining 40 companies",
+    "Export to CSV",
+    "Review and filter results"
+  ]
+}
