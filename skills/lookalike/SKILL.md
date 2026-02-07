@@ -227,6 +227,19 @@ Specific phrases that indicate non-fits:
 ### Domain Exclusions (negate_domain)
 Specific domains to exclude (max 10 per API call).
 
+### If EXPORT:
+Save results to `exports/` directory as CSV with all fields.
+
+**File naming:** `<seed_domain>_lookalike_companies.csv`
+- Replace dots in domain with underscores: `productevo.io` → `productevo_io_lookalike_companies.csv`
+- Example: `exports/productevo_io_lookalike_companies.csv`
+
+**Auto-archive:** Before writing, check if a file with the same name already exists. If so, move the old file to `exports/archive/` with a timestamp suffix:
+- `exports/archive/productevo_io_lookalike_companies_20260207_120000.csv`
+- Create `exports/archive/` if it doesn't exist.
+
+Show: file path, record count, columns included.
+
 ---
 
 ## COMMON MISTAKES TO AVOID
