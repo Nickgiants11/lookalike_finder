@@ -65,17 +65,23 @@ X-TOKEN: <AIARK_API_KEY from environment>
 {
   "page": 0,
   "size": <contacts_per_company>,
-  "account_filter": {
+  "account": {
     "domain": {
-      "include": ["<company_domain>"]
+      "any": {
+        "include": ["<company_domain>"]
+      }
     }
   },
-  "contact_filter": {
+  "contact": {
     "seniority": {
-      "include": ["C-Level", "VP", "Director", "Owner", "Founder"]
+      "any": {
+        "include": ["C-Level", "VP", "Director", "Owner", "Founder"]
+      }
     },
     "department": {
-      "include": ["Executive", "Sales", "Marketing", "Business Development", "Management"]
+      "any": {
+        "include": ["Executive", "Sales", "Marketing", "Business Development", "Management"]
+      }
     }
   }
 }
