@@ -1,0 +1,48 @@
+{
+  "seed_domain": "foreverfierce.com",
+  "created": "2026-02-07T11:38:07.340092",
+  "iterations": [
+    {
+      "number": 1,
+      "filters": {
+        "country": "US",
+        "employee_range": "11-50",
+        "max_records": 50
+      },
+      "results_count": 50,
+      "excluded_count": 11,
+      "clean_count": 39,
+      "exclusions_applied": {
+        "domains": [
+          "customaffiliatewebsites.com"
+        ],
+        "industries": [
+          "SPORTS_AND_RECREATION"
+        ],
+        "phrases": [
+          "fitness gym",
+          "crossfit gym",
+          "personal training",
+          "crossfit classes",
+          "web design"
+        ]
+      }
+    }
+  ],
+  "phrase_exclusions": [
+    "fitness gym",
+    "crossfit gym",
+    "fitness facility",
+    "personal training",
+    "crossfit classes",
+    "fitness goals",
+    "nutrition coaching",
+    "web design"
+  ],
+  "industry_exclusions": [
+    "SPORTS_AND_RECREATION"
+  ],
+  "domain_exclusions": [
+    "customaffiliatewebsites.com"
+  ]
+}

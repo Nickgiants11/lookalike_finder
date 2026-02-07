@@ -1,147 +1,294 @@
 ---
 name: lookalike
-description: Run complete lookalike discovery workflow - give it a domain and it handles everything
+description: Run complete lookalike discovery workflow with thorough QA review
 ---
 
 # Lookalike Finder Skill
 
-You are running an interactive lookalike company discovery workflow. This is a complete, self-running process.
+Interactive lookalike company discovery with **thorough quality review**.
+
+## CRITICAL: QA PROCESS
+
+Every batch MUST go through this review process. Do NOT skip steps.
+
+---
 
 ## STEP 1: GET SEED DOMAIN
 
-If the user provided a domain as an argument, use it. Otherwise ask:
+If user provided a domain, use it. Otherwise ask:
 "What domain would you like to find lookalikes for?"
 
 ## STEP 2: PROFILE THE SEED
 
-Use `mcp__discolike__business-profile` with fields: domain, name, description, score, industry_groups, keywords, employees, address
+Call DiscoLike BizData API to get:
+- Company name, description
+- Primary industries
+- Keywords
+- Location, score
 
-Show the user:
-- Company name and description
-- Primary industry and confidence
-- Digital footprint score
-- Key keywords
+**Show the user:**
+```
+📊 Seed Analysis: [Company Name]
+- Domain: [domain]
+- Location: [city, state]
+- Industries: [list]
+- Description: [summary]
+- Top Keywords: [list]
+```
 
-Then say: "I'll use this profile to find similar companies."
+Identify **what the company DOES** and **who they serve** (important for QA later).
 
-## STEP 3: ASK FOR PREFERENCES
+## STEP 3: ASK FOR PREFERENCES (Every Time!)
 
-Use AskUserQuestion to ask:
+**Always ask these 4 questions:**
 
-1. "How many results do you want?" - Options: 50, 100, 200, 500
-2. "Which country?" - Options: US only, Global, Let me specify
-3. "Company size preference?" - Options: Small (1-50), Medium (11-200), Large (50-500), Any size
+1. "How many companies for this batch?" (50 / 100 / 200 / 500)
+2. "Which location?" (US only / specific states / global)
+3. "Company size (employees)?" (1-10 / 11-50 / 51-200 / any)
+4. "Any CSV exclusion list to apply?" (path or "none")
 
-## STEP 4: CHECK FOR EXCLUSIONS
+## STEP 4: RUN INITIAL BATCH
 
-Ask: "Do you have any exclusions to apply?"
-- Options: No exclusions, Exclude specific domains, Exclude from CSV file, Exclude industries
+Build filters and call DiscoLike Discover API:
+```
+domain=[seed]
+country=[preference]
+employee_range=[preference]
+max_records=[preference]
+min_similarity=60
+negate_category=[any from previous iterations]
+negate_domain=[any from previous iterations]
+```
 
-If they choose CSV exclusion:
-- Ask for the CSV file path
-- Read the CSV and extract the domain column
-- Store domains in the session's excluded_domains list
+Cache raw results to `/tmp/discolike_batch.json` for analysis.
 
-If they choose domain exclusions:
-- Ask them to list domains to exclude (comma-separated)
+## STEP 5: SHOW INDUSTRY BREAKDOWN
 
-If they choose industry exclusions:
-- Show available categories: SAAS, SOFTWARE, E-COMMERCE, IT_SERVICES, CONSULTING, etc.
-- Let them select which to exclude
+```
+📊 INDUSTRY BREAKDOWN:
+| Industry | Count | % | Notes |
+|----------|-------|---|-------|
+| BUSINESS_PRODUCTS_AND_SERVICES | 21 | 42% | ✓ Target |
+| SPORTS_AND_RECREATION | 10 | 20% | ⚠️ Review |
+```
 
-## STEP 5: RUN INITIAL DISCOVERY
+Calculate target industry match percentage.
 
-Build filters based on user preferences:
+**⚠️ WARN if target match < 80%**
+
+## STEP 6: THOROUGH QA REVIEW (CRITICAL!)
+
+**Do NOT skip this step. Review ALL companies.**
+
+### 6a. Show Full List
+Display ALL companies with:
+- Domain, Name
+- Primary Industry
+- Description snippet (first 150 chars)
+- Location
+
+Save to CSV for user to review: `exports/[client]/batch_full_review.csv`
+
+### 6b. Identify Non-Fits
+For each company, check if it matches the seed's business model:
+- Is it the same TYPE of business?
+- Or is it a CUSTOMER of the seed?
+
+**Common issues to flag:**
+- Gyms/fitness centers (if seed sells TO gyms)
+- Web agencies (if seed is product company)
+- Software companies (if seed is services)
+- Restaurants, real estate, healthcare (usually wrong)
+
+### 6c. Analyze Descriptions
+Look for phrases that distinguish BAD fits from GOOD fits:
+- What phrases appear in non-fits but NOT in good fits?
+- These become phrase exclusions
+
+**Example analysis:**
+```
+Phrase              | In Bad | In Good | Recommend
+"fitness gym"       | 6      | 0       | ✅ EXCLUDE
+"personal training" | 5      | 0       | ✅ EXCLUDE
+"screen printing"   | 0      | 15      | ✅ KEEP (target phrase)
+```
+
+### 6d. Present Findings
+
+Show:
+1. **Red Flags** - Companies to exclude with reasoning
+2. **Questionable** - Need user input
+3. **Good Fits** - Count of clean companies
+
+**Recommendations format:**
+```
+📋 EXCLUSION RECOMMENDATIONS:
+
+DOMAINS TO EXCLUDE:
+- domain1.com (reason)
+- domain2.com (reason)
+
+PHRASE EXCLUSIONS (for future batches):
+- "fitness gym"
+- "personal training"
+- "web design"
+
+INDUSTRY EXCLUSIONS:
+- SPORTS_AND_RECREATION
+```
+
+## STEP 7: ASK FOR CONFIRMATION
+
+```
+Do you confirm these exclusions?
+1. ✅ Yes, apply all
+2. ⚠️ Modify (tell me which)
+3. 🔍 Review something else first
+```
+
+**Wait for user confirmation before proceeding.**
+
+## STEP 8: APPLY EXCLUSIONS & EXPORT
+
+After confirmation:
+1. Remove excluded domains
+2. Remove companies in excluded industries
+3. Save clean CSV: `exports/[client]/[client]_companies_clean.csv`
+4. Show final count
+
+```
+✅ BATCH COMPLETE
+   Total found: 50
+   Excluded: 11
+   Clean companies: 39
+   Saved to: exports/[client]/[client]_companies_clean.csv
+```
+
+## STEP 9: SAVE SESSION STATE
+
+Save to `.sessions/[seed]_session.json`:
 ```json
 {
-  "domain": ["<seed_domain>"],
-  "max_records": <user_choice>,
-  "country": <if specified>,
-  "employee_range": <based on size choice>,
-  "min_digital_footprint": 25,
-  "max_digital_footprint": 500,
-  "negate_category": <excluded industries>,
-  "negate_domain": <excluded domains from CSV or list>
+  "seed_domain": "example.com",
+  "iterations": [{
+    "number": 1,
+    "filters": {...},
+    "results_count": 50,
+    "clean_count": 39,
+    "exclusions_applied": {...}
+  }],
+  "phrase_exclusions": ["fitness gym", ...],
+  "industry_exclusions": ["SPORTS_AND_RECREATION"],
+  "domain_exclusions": ["bad-domain.com"]
 }
 ```
 
-Use `mcp__discolike__discover-similar-companies` with fields:
-domain, name, similarity, employees, score, address, industry_groups, description, public_emails, phones, social_urls
+## STEP 10: ASK FOR NEXT BATCH
 
-## STEP 6: SHOW RESULTS SUMMARY
+```
+How many companies for the next batch? (50 / 100 / 200 / 500 / done)
+```
 
-Display:
-- Total records found
-- Similarity range (min-max)
-- Industry breakdown with percentages
-- Top 10 matches with: domain, name, similarity, location, employees
+If user wants more:
+- Apply accumulated exclusions (phrases, industries, domains)
+- Run new batch with offset
+- Repeat QA process (Steps 5-9)
 
-Calculate target industry match %: (matches in seed's primary industry / total) * 100
+---
 
-## STEP 7: REFINEMENT LOOP
+## KEY BEHAVIORS (MUST FOLLOW)
 
-Ask: "What would you like to do next?"
+1. **Always show industry breakdown** after discovery
+2. **Always review ALL companies** - not just a sample
+3. **Always analyze descriptions** for exclusion phrases
+4. **Always ask for confirmation** before applying exclusions
+5. **Always track iteration number**
+6. **Always save session state**
+7. **Warn if target industry match < 80%**
+8. **Be thorough** - catch non-fits BEFORE user has to point them out
 
-Options:
-1. **Export to CSV** - Run export, show file location
-2. **Refine results** - Add filters to improve targeting
-3. **Get more results** - Increase count with pagination
-4. **Exclude companies** - Remove specific domains from future results
-5. **Start over** - New search with different seed
-6. **Done** - End session
+---
 
-### If REFINE:
-Ask what to adjust:
-- Add negative phrases (exclude companies with specific text on website)
-- Add negative ICP text (natural language description of what to exclude)
-- Exclude more industries
-- Narrow employee range
-- Adjust digital footprint range
+## EXCLUSION TYPES
 
-Re-run discovery and show updated stats.
+### Industry Exclusions (negate_category)
+Broad categories to exclude entirely:
+- `SPORTS_AND_RECREATION` - gyms, fitness centers
+- `RESTAURANTS` - food service
+- `REAL_ESTATE` - property companies
+- `HEALTHCARE` - medical (unless relevant)
 
-### If GET MORE:
-Use pagination with offset to get additional batches.
-Merge with existing results, dedupe by domain.
+### Phrase Exclusions (negate_keyword / ICP text)
+Specific phrases that indicate non-fits:
+- "fitness gym", "crossfit gym", "fitness facility"
+- "personal training", "group fitness"
+- "web design", "digital marketing"
 
-### If EXCLUDE COMPANIES:
-Ask for domains to exclude (comma-separated or CSV path).
-Add to session's excluded_domains.
-Re-run discovery with negate_domain filter.
+### Domain Exclusions (negate_domain)
+Specific domains to exclude (max 10 per API call).
 
-### If EXPORT:
-Save results to `exports/` directory as CSV with all fields.
-Show: file path, record count, columns included.
-Auto-archive any previous export with timestamp.
+---
 
-## STEP 8: SAVE SESSION
+## COMMON MISTAKES TO AVOID
 
-After each iteration, save to `.sessions/<seed_domain>_session.json` with:
-- Seed profile
-- All iterations (filters, results count, industry breakdown)
-- Excluded domains list
-- Current filters
+❌ Skipping the QA review
+❌ Only showing a sample instead of all results
+❌ Not analyzing descriptions for patterns
+❌ Excluding too broadly (hitting good fits)
+❌ Not asking for confirmation
+❌ Forgetting to save session state
+❌ Not tracking iteration number
 
-## REPEAT
+---
 
-After completing any action, return to Step 7 (refinement loop) until user chooses "Done".
+## EXAMPLE SESSION
 
-## KEY BEHAVIORS
+```
+User: /lookalike foreverfierce.com
 
-1. Always show industry breakdown percentages after discovery
-2. Track and display iteration number
-3. Warn if target industry match drops below 80%
-4. Auto-archive previous exports
-5. Support CSV exclusion lists (look for domain/website/url columns)
-6. Persist everything to session file
-7. Be conversational but efficient
-8. Create directories (.sessions/, exports/, exports/archive/) if they don't exist
+Claude: 📊 Seed Analysis: Forever Fierce
+- Domain: foreverfierce.com
+- Location: Cary, NC
+- Industries: Business Products & Services, E-Commerce
+- Description: Custom gym apparel and screen printing for gyms
 
-## EXCLUSION LIST FROM CSV
+Forever Fierce SELLS apparel TO gyms. So we want other apparel/merch 
+companies, NOT the gyms themselves.
 
-To exclude domains from a CSV:
-1. Read the CSV file
-2. Look for columns named: domain, website, url, company_domain, Domain, Website
-3. Extract all domain values
-4. Clean domains (remove http://, https://, www., trailing slashes)
-5. Add to negate_domain filter array (max 10 per API call, batch if needed)
+Before I pull results:
+1. How many companies? (50/100/200/500)
+2. Location? (US only / specific / global)
+3. Company size? (1-10 / 11-50 / 51-200 / any)
+4. Exclusion CSV? (path or "none")
+
+User: 50, US only, 11-50, none
+
+Claude: 🔄 /lookalike foreverfierce.com — Iteration #1
+
+📊 INDUSTRY BREAKDOWN:
+[shows breakdown]
+
+Now reviewing ALL 50 companies...
+
+[shows full list with descriptions]
+
+🔍 QA FINDINGS:
+
+🏋️ RED FLAGS - Found 10 GYMS (customers, not competitors):
+- cfcoordinate.com (CrossFit gym in Cary)
+- [etc...]
+
+📋 RECOMMENDATIONS:
+- Exclude SPORTS_AND_RECREATION industry
+- Add phrase exclusions: "fitness gym", "personal training"
+
+Do you confirm? (Y/N)
+
+User: Y
+
+Claude: ✅ BATCH COMPLETE
+Clean companies: 39
+Saved to: exports/foreverfierce/foreverfierce_companies_clean.csv
+
+How many for next batch?
+```
